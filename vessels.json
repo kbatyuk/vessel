@@ -1,0 +1,48 @@
+{
+  "field-name": "vesselName",
+  "term-uri-field": "vesselIdentifier", 
+  "js-url": ["https://your-domain.com/scripts/vessels.js", "https://gdcc.github.io/dataverse-external-vocab-support/scripts/cvocutils.js"],
+  "protocol": "r2r-vessel",
+  "retrieval-uri": "https://service.rvdata.us/api/vessel/keyword/{0}",
+  "allow-free-text": true,
+  "prefix": "https://www.rvdata.us/vessel/",
+  "managed-fields": {
+    "vesselName": "vesselName",
+    "vesselIces": "vesselIces_code", 
+    "vesselDesignation": "vesselDesignation",
+    "vesselOperator": "vesselOperator_name"
+  },
+  "languages": "en",
+  "vocabs": {
+    "r2r-vessels": {
+      "uriSpace": "https://www.rvdata.us/vessel/"
+    }
+  },
+  "retrieval-filtering": {
+    "@context": {
+      "vesselName": "https://schema.org/name",
+      "vesselIces": "https://schema.org/identifier",
+      "vesselDesignation": "https://schema.org/additionalType",
+      "vesselOperator": "https://schema.org/operator"
+    },
+    "vesselName": {
+      "pattern": "{0}",
+      "params": ["/name"]
+    },
+    "vesselIces": {
+      "pattern": "{0}", 
+      "params": ["/ices_code"]
+    },
+    "vesselDesignation": {
+      "pattern": "{0}",
+      "params": ["/designation"] 
+    },
+    "vesselOperator": {
+      "pattern": "{0}",
+      "params": ["/operator_name"]
+    },
+    "@type": {
+      "pattern": "https://schema.org/Vehicle"
+    }
+  }
+}
