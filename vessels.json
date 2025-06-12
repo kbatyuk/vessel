@@ -1,7 +1,7 @@
 {
   "field-name": "vesselName",
   "term-uri-field": "vesselIdentifier", 
-  "js-url": ["https://your-domain.com/scripts/vessels.js", "https://gdcc.github.io/dataverse-external-vocab-support/scripts/cvocutils.js"],
+  "js-url": ["https://raw.githubusercontent.com/kbatyuk/vessel/refs/heads/main/vessels.js", "https://gdcc.github.io/dataverse-external-vocab-support/scripts/cvocutils.js"],
   "protocol": "r2r-vessel",
   "retrieval-uri": "https://service.rvdata.us/api/vessel/keyword/{0}",
   "allow-free-text": true,
