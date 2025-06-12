@@ -1,20 +1,41 @@
 var vesselSelector = "span[data-cvoc-protocol='r2r-vessel']";
 var vesselInputSelector = "input[data-cvoc-protocol='r2r-vessel']";
 var vesselPrefix = "r2r-vessel:";
+var term; // Global variable to store search term
 
 $(document).ready(function() {
     expandVessels();
     updateVesselInputs();
 });
 
+// Utility functions
+function storeValue(prefix, key, value) {
+    if (typeof Storage !== "undefined") {
+        localStorage.setItem(prefix + key, JSON.stringify({name: value}));
+    }
+}
+
+function getValue(prefix, key) {
+    if (typeof Storage !== "undefined") {
+        var stored = localStorage.getItem(prefix + key);
+        return stored ? JSON.parse(stored) : {name: null};
+    }
+    return {name: null};
+}
+
+function markMatch(text, term) {
+    if (!term) return text;
+    var regex = new RegExp('(' + term.replace(/[.*+?^${}()|[\]\\]/g, '\\$&') + ')', 'gi');
+    return text.replace(regex, '<mark>$1</mark>');
+}
+
 function expandVessels() {
     $(vesselSelector).each(function() {
         var vesselElement = this;
-        
         if (!$(vesselElement).hasClass('expanded')) {
             $(vesselElement).addClass('expanded');
-            
             var vesselBaseUrl = $(vesselElement).attr('data-cvoc-service-url');
+            
             if (!vesselBaseUrl) {
                 vesselBaseUrl = "https://www.rvdata.us/vessel/";
             }
@@ -26,7 +47,6 @@ function expandVessels() {
             
             // Call R2R vessel API
             var vesselRetrievalUrl = "https://service.rvdata.us/api/vessel/keyword/" + encodeURIComponent(id);
-            
             $.ajax({
                 type: "GET",
                 url: vesselRetrievalUrl,
@@ -40,9 +60,9 @@ function expandVessels() {
                         var displayName = vessel.name + " (" + vessel.ices_code + ")";
                         var displayElement = $('<span>').text(displayName)
                             .append($('<a>').attr('href', vesselBaseUrl + vessel.ices_code)
-                                   .attr('target', '_blank')
-                                   .attr('rel', 'noopener')
-                                   .html(' 🚢'));
+                                .attr('target', '_blank')
+                                .attr('rel', 'noopener')
+                                .html(' 🚢'));
                         
                         $(vesselElement).hide();
                         let sibs = $(vesselElement).siblings("[data-cvoc-index='" + $(vesselElement).attr('data-cvoc-index') + "']");
@@ -74,12 +94,11 @@ function expandVessels() {
 function updateVesselInputs() {
     $(vesselInputSelector).each(function() {
         var vesselInput = this;
-        
         if (!vesselInput.hasAttribute('data-vessel')) {
             let num = Math.floor(Math.random() * 100000000000);
             $(vesselInput).attr('data-vessel', num);
-            
             var vesselBaseUrl = $(vesselInput).attr('data-cvoc-service-url');
+            
             if (!vesselBaseUrl) {
                 vesselBaseUrl = "https://www.rvdata.us/vessel/";
             }
@@ -97,26 +116,29 @@ function updateVesselInputs() {
                     $(parent).find("input[data-cvoc-managed-field='" + managedFields.vesselIces + "']").hide();
                     $(parent).find("input[data-cvoc-managed-field='" + managedFields.vesselDesignation + "']").hide();
                     $(parent).find("input[data-cvoc-managed-field='" + managedFields.vesselOperator + "']").hide();
+                    
+                    $(vesselInput).parent().hide();
+                } else {
+                    $(vesselInput).hide();
                 }
-                $(vesselInput).parent().hide();
-            } else {
-                $(vesselInput).hide();
             }
             
             var selectId = "vesselAddSelect_" + num;
-            $(vesselInput).parent().parent().children('div').eq(0).append(
-                '<select id="' + selectId + '" style="width: 100%"></select>'
-            );
+            var selectHtml = '<select id="' + selectId + '" class="form-control" style="width: 100%;"></select>';
+            $(vesselInput).parent().parent().children('div').eq(0).append(selectHtml);
             
             $("#" + selectId).select2({
                 theme: "classic",
-                tags: $(vesselInput).attr('data-cvoc-allowfreetext'),
+                tags: $(vesselInput).attr('data-cvoc-allowfreetext') === 'true',
                 delay: 500,
                 templateResult: function(item) {
                     if (item.loading) {
                         return item.text;
                     }
-                    return markMatch(item.text, term);
+                    if (typeof term !== 'undefined' && term) {
+                        return markMatch(item.text, term);
+                    }
+                    return item.text;
                 },
                 templateSelection: function(item) {
                     return item.text;
@@ -126,7 +148,7 @@ function updateVesselInputs() {
                         return 'Search vessels by name or ICES code...';
                     }
                 },
-                placeholder: vesselInput.hasAttribute("data-cvoc-placeholder") ? 
+                placeholder: vesselInput.hasAttribute("data-cvoc-placeholder") ?
                     $(vesselInput).attr('data-cvoc-placeholder') : "Select or enter vessel...",
                 minimumInputLength: 2,
                 allowClear: true,
@@ -148,8 +170,11 @@ function updateVesselInputs() {
                         
                         return {
                             results: data
-                                .sort((a, b) => Number(getValue(vesselPrefix, b.ices_code).name != null) - 
-                                              Number(getValue(vesselPrefix, a.ices_code).name != null))
+                                .sort((a, b) => {
+                                    var aHasStored = getValue(vesselPrefix, a.ices_code) && getValue(vesselPrefix, a.ices_code).name != null;
+                                    var bHasStored = getValue(vesselPrefix, b.ices_code) && getValue(vesselPrefix, b.ices_code).name != null;
+                                    return Number(bHasStored) - Number(aHasStored);
+                                })
                                 .map(function(vessel) {
                                     return {
                                         text: vessel.name + " (" + vessel.ices_code + ") - " + vessel.operator_name,
@@ -167,12 +192,10 @@ function updateVesselInputs() {
             $('#' + selectId).on('select2:select', function(e) {
                 var data = e.params.data;
                 var vesselData = data.vesselData;
-                
                 $("input[data-vessel='" + num + "']").val(vesselBaseUrl + data.id);
                 
                 if (hasParentField && Object.keys(managedFields).length > 0) {
                     var parent = $("input[data-vessel='" + num + "']").closest("[data-cvoc-parentfield='" + parentField + "']");
-                    
                     // Populate managed fields
                     $(parent).find("input[data-cvoc-managed-field='" + managedFields.vesselName + "']")
                         .val(vesselData.name).attr('value', vesselData.name);
